@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """Generate the gallery screenshot HTML with programmatically aligned columns.
 
-Render the PNG afterwards (macOS, Chrome at the default path):
+Render the PNG afterwards (macOS, Chrome at the default path). The
+`--default-background-color=00000000` flag is REQUIRED — without it Chrome
+fills the page background with opaque white and the rounded corners / drop
+shadow sit in a white box:
 
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
         --headless --disable-gpu --hide-scrollbars --force-device-scale-factor=2 \
-        --window-size=1040,540 --screenshot=docs/screenshot.png \
+        --default-background-color=00000000 \
+        --window-size=1160,720 --screenshot=docs/screenshot.png \
         "file://$(pwd)/docs/page.html"
 """
 import html
@@ -58,7 +62,7 @@ page = """<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <style>
 	* { margin: 0; padding: 0; box-sizing: border-box; }
-	body { background: transparent; }
+	body { background: transparent; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
 	.terminal {
 		width: 980px;
 		background: #1e1e2e;
