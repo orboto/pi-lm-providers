@@ -23,7 +23,7 @@ import type {
 	ProviderAuthInteraction,
 	RefreshModelsContext,
 } from "@earendil-works/pi-ai";
-import { buildDynamicModel, fetchJson, guessReasoning, withTimeout } from "./shared.ts";
+import { buildDynamicModel, fetchJson, guessReasoning, logRefresh, withTimeout } from "./shared.ts";
 
 const DEFAULT_BASE = "http://localhost:1234";
 const DUMMY_KEY = "lm-studio";
@@ -148,13 +148,22 @@ export async function lmStudioFetchModels(context: RefreshModelsContext): Promis
 	const apiBase = `${cfg.base}/v1`;
 	const models: Model<"openai-completions">[] = [];
 
-	// 1) Native /api/v1/models — rich metadata
-	const native = await fetchJson<{ models?: LmStudioModelEntry[] }>(`${cfg.base}/api/v1/models`, {
-		headers,
-		signal: withTimeout(context.signal, 20000),
-	});
+	// 1) Native /api/v1/models — rich metadata (one retry on transient failures)
+	let native: Awaited<ReturnType<typeof fetchJson<{ models?: LmStudioModelEntry }>>> | undefined;
+	for (let attempt = 0; attempt < 2 && native === undefined; attempt++) {
+		const result = await fetchJson<{ models?: LmStudioModelEntry[] }>(`${cfg.base}/api/v1/models`, {
+			headers,
+			signal: withTimeout(context.signal, 20000),
+		});
+		if (result.ok || context.signal.aborted || (result.status >= 400 && result.status < 500 && result.status !== 429)) {
+			native = result;
+		} else if (attempt === 0) {
+			logRefresh("lmstudio", `/api/v1/models failed (${result.status || "network"} ${result.error}), retrying once`);
+			await new Promise((resolve) => setTimeout(resolve, 500));
+		}
+	}
 
-	if (native.ok && Array.isArray(native.body.models)) {
+	if (native?.ok && Array.isArray(native.body.models)) {
 		for (const entry of native.body.models) {
 			const id = entry.key ?? entry.id;
 			if (!id) continue;
@@ -192,9 +201,11 @@ export async function lmStudioFetchModels(context: RefreshModelsContext): Promis
 		signal: withTimeout(context.signal, 20000),
 	});
 	if (!list.ok) {
-		throw new Error(
-			`LM Studio: cannot list models at ${cfg.base} (${list.error}). Start the server in LM Studio (Developer tab) or with \`lms server start\`.`,
-		);
+		const message =
+			`LM Studio: cannot list models at ${cfg.base} (${list.error}). ` +
+			"Start the server in LM Studio (Developer tab) or with `lms server start`.";
+		logRefresh("lmstudio", message);
+		throw new Error(message);
 	}
 	for (const entry of list.body.data ?? []) {
 		if (!entry.id) continue;

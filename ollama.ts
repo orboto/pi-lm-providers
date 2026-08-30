@@ -23,7 +23,7 @@ import type {
 	ProviderAuthInteraction,
 	RefreshModelsContext,
 } from "@earendil-works/pi-ai";
-import { buildDynamicModel, fetchJson, forEachLimit, guessReasoning, withTimeout } from "./shared.ts";
+import { buildDynamicModel, fetchJson, forEachLimit, guessReasoning, logRefresh, withTimeout } from "./shared.ts";
 
 const CLOUD_DEFAULT = "https://ollama.com";
 const LOCAL_DEFAULT = "http://localhost:11434";
@@ -155,7 +155,15 @@ interface ShowDetails {
 	contextLength?: number;
 }
 
+/** Cache /api/show results for 10 minutes — the answer never changes within a session. */
+const showCache = new Map<string, { details: ShowDetails; expires: number }>();
+const SHOW_CACHE_TTL_MS = 10 * 60 * 1000;
+
 async function showModel(base: string, name: string, headers: Record<string, string>, signal: AbortSignal): Promise<ShowDetails | null> {
+	const cacheKey = `${base}|${name}`;
+	const cached = showCache.get(cacheKey);
+	if (cached && cached.expires > Date.now()) return cached.details;
+
 	const result = await fetchJson<{ capabilities?: string[]; model_info?: Record<string, unknown> }>(`${base}/api/show`, {
 		method: "POST",
 		headers: { ...headers, "Content-Type": "application/json" },
@@ -164,10 +172,12 @@ async function showModel(base: string, name: string, headers: Record<string, str
 	});
 	if (!result.ok) return null;
 	const contextEntry = Object.entries(result.body.model_info ?? {}).find(([key]) => key.endsWith(".context_length"));
-	return {
+	const details: ShowDetails = {
 		capabilities: result.body.capabilities ?? [],
 		contextLength: typeof contextEntry?.[1] === "number" ? contextEntry[1] : undefined,
 	};
+	showCache.set(cacheKey, { details, expires: Date.now() + SHOW_CACHE_TTL_MS });
+	return details;
 }
 
 export async function ollamaFetchModels(context: RefreshModelsContext): Promise<readonly Model<"openai-completions">[]> {
@@ -182,21 +192,27 @@ export async function ollamaFetchModels(context: RefreshModelsContext): Promise<
 	const apiKey = cfg.mode === "cloud" ? cfg.apiKey : undefined; // local servers don't want our dummy key
 	if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 
-	// 1) Native /api/tags (model names)
+	// 1) Native /api/tags (model names) — one retry on transient failures
 	let names: string[] | undefined;
 	let native = false;
-	const tags = await fetchJson<{ models?: Array<{ name?: string; model?: string }> }>(`${cfg.base}/api/tags`, {
-		headers,
-		signal: withTimeout(context.signal, 20000),
-	});
-	if (tags.ok) {
-		names = (tags.body.models ?? [])
-			.map((m) => m.name ?? m.model ?? "")
-			.filter((n): n is string => Boolean(n));
-		native = true;
-	} else if (context.signal.aborted) {
-		throw new Error("Ollama: aborted");
+	for (let attempt = 0; attempt < 2 && names === undefined; attempt++) {
+		const tags = await fetchJson<{ models?: Array<{ name?: string; model?: string }> }>(`${cfg.base}/api/tags`, {
+			headers,
+			signal: withTimeout(context.signal, 20000),
+		});
+		if (tags.ok) {
+			names = (tags.body.models ?? [])
+				.map((m) => m.name ?? m.model ?? "")
+				.filter((n): n is string => Boolean(n));
+			native = true;
+		} else if (context.signal.aborted || (tags.status >= 400 && tags.status < 500 && tags.status !== 429)) {
+			break; // aborted or a permanent client error (e.g. 401/404) — retrying won't help
+		} else if (attempt === 0) {
+			logRefresh("ollama", `/api/tags failed (${tags.status || "network"} ${tags.error}), retrying once`);
+			await new Promise((resolve) => setTimeout(resolve, 600));
+		}
 	}
+	if (context.signal.aborted) throw new Error("Ollama: aborted");
 
 	// 2) Fallback: OpenAI-compatible listing
 	if (!names) {
@@ -205,12 +221,13 @@ export async function ollamaFetchModels(context: RefreshModelsContext): Promise<
 			signal: withTimeout(context.signal, 20000),
 		});
 		if (!list.ok) {
-			throw new Error(
+			const message =
 				`Ollama: cannot list models at ${cfg.base} (${list.error}). ` +
-					(cfg.mode === "cloud"
-						? "Run /login ollama to store an API key."
-						: "Start the server with `ollama serve` and pull a model with `ollama pull <model>`."),
-			);
+				(cfg.mode === "cloud"
+					? "Run /login ollama to store an API key."
+					: "Start the server with `ollama serve` and pull a model with `ollama pull <model>`, or unset OLLAMA_MODE/local config if you meant Ollama Cloud.");
+			logRefresh("ollama", message);
+			throw new Error(message);
 		}
 		names = (list.body.data ?? [])
 			.map((m) => m.id ?? "")

@@ -90,6 +90,40 @@ export function withTimeout(signal: AbortSignal, ms: number): AbortSignal {
 	return typeof (AbortSignal as any).any === "function" ? AbortSignal.any([signal, timeout]) : signal;
 }
 
+/**
+ * Append a diagnostic line for refresh failures so the root cause is
+ * recoverable when pi only surfaces "Could not refresh <provider>".
+ */
+export function logRefresh(provider: string, message: string): void {
+	try {
+		const fs = require("node:fs");
+		const os = require("node:os");
+		const path = require("node:path");
+		const file = path.join(os.homedir(), ".pi", "agent", "extensions", "lm-providers", "refresh.log");
+		const line = `${new Date().toISOString()} [${provider}] ${message.replace(/\s+/g, " ").slice(0, 300)}\n`;
+		const stat = fs.existsSync(file) ? fs.statSync(file).size : 0;
+		fs.writeFileSync(file, stat > 64 * 1024 ? line : line, { flag: "a" });
+	} catch {
+		// Logging must never break the refresh.
+	}
+}
+
+/** Read a stored api_key credential from ~/.pi/agent/auth.json (documented format). */
+export function readStoredCredential(providerId: string): { key?: string; env?: Record<string, string> } | undefined {
+	try {
+		const fs = require("node:fs");
+		const os = require("node:os");
+		const path = require("node:path");
+		const file = path.join(os.homedir(), ".pi", "agent", "auth.json");
+		const auth = JSON.parse(fs.readFileSync(file, "utf8"));
+		const entry = auth?.[providerId];
+		if (entry?.type === "api_key") return { key: entry.key, env: entry.env };
+	} catch {
+		// Missing/unreadable auth file is normal before the first /login.
+	}
+	return undefined;
+}
+
 /** Reasoning heuristic used when a server gives us only model names (no capabilities). */
 export function guessReasoning(id: string): boolean {
 	return /gpt-oss|deepseek-r1|deepseek-v3\.1|deepseek-v4|qwen3|qwq|[-_.]r1\b|thinking|reasoner|glm-[45]\.5|glm-5|kimi-k3|magistral|minimax-m[23]|nemotron-3/i.test(
