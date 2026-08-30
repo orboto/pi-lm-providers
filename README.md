@@ -10,6 +10,13 @@ Alternativ manuell: `"npm:pi-lm-providers"` in `~/.pi/agent/settings.json`
 unter `packages` eintragen. Ohne npm: die `.ts`-Dateien nach
 `~/.pi/agent/extensions/lm-providers/` kopieren (pi lädt sie automatisch).
 
+Für lokale Entwicklung genügt ein Pfad-Package (Änderungen wirken nach
+`/reload` direkt, ohne Neuinstallation):
+
+```bash
+pi install /Volumes/Development/Repositories/pi-lm-providers
+```
+
 Registriert zwei dynamische Provider:
 
 | Provider | Endpoint | Login |
@@ -81,6 +88,8 @@ Quantisierung); ältere Server fallen automatisch auf `/v1/models` zurück.
   damit pi automatisch kompaktiert und erneut versucht.
 - **Modellliste aktualisieren**: Modelle werden beim pi-Start geladen; nach
   `ollama pull …` / Modell-Download in LM Studio genügt ein Neustart oder `/reload`.
+- **Diagnose**: Schlägt ein Refresh fehl (pi zeigt nur „Could not refresh ollama“),
+  steht die Ursache in `~/.pi/agent/lm-providers.log`.
 - **Cloud-Kosten**: Usage-Tracking zeigt $0 — Ollama-Cloud-Preise sind modellabhängig
   (siehe <https://ollama.com/cloud>).
 - **Wichtig für lokale Ollama-Modelle**: Ollama alloziert den Runtime-Context

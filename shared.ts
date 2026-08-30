@@ -99,10 +99,11 @@ export function logRefresh(provider: string, message: string): void {
 		const fs = require("node:fs");
 		const os = require("node:os");
 		const path = require("node:path");
-		const file = path.join(os.homedir(), ".pi", "agent", "extensions", "lm-providers", "refresh.log");
+		// Deliberately outside any extension/package directory: the log location
+		// must not depend on where this extension is installed from.
+		const file = path.join(os.homedir(), ".pi", "agent", "lm-providers.log");
 		const line = `${new Date().toISOString()} [${provider}] ${message.replace(/\s+/g, " ").slice(0, 300)}\n`;
-		const stat = fs.existsSync(file) ? fs.statSync(file).size : 0;
-		fs.writeFileSync(file, stat > 64 * 1024 ? line : line, { flag: "a" });
+		fs.writeFileSync(file, line, { flag: "a" });
 	} catch {
 		// Logging must never break the refresh.
 	}

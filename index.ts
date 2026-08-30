@@ -16,7 +16,7 @@
  *      startup catalog matches the chosen endpoint (cloud vs local).
  *   2. via `fetchModels` for later dynamic model refreshes
  *
- * Refresh failures are logged to refresh.log next to this file — pi's UI only
+ * Refresh failures are logged to ~/.pi/agent/lm-providers.log — pi's UI only
  * surfaces "Could not refresh <provider>" without the underlying cause.
  *
  * Usage:
