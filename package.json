@@ -6,7 +6,8 @@
   "pi": {
     "extensions": [
       "./index.ts"
-    ]
+    ],
+    "image": "https://raw.githubusercontent.com/orboto/pi-lm-providers/main/docs/screenshot.png"
   },
   "keywords": [
     "pi-package",
