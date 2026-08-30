@@ -20,7 +20,7 @@
     "lm-studio",
     "local-llm"
   ],
-  "author": "orboto <hello@orboto.io>",
+  "author": "Daniel Schemann <schemann@silentfuture.de>",
   "license": "MIT",
   "repository": {
     "type": "git",
