@@ -221,11 +221,13 @@ export async function ollamaFetchModels(context: RefreshModelsContext): Promise<
 			signal: withTimeout(context.signal, 20000),
 		});
 		if (!list.ok) {
-			const message =
-				`Ollama: cannot list models at ${cfg.base} (${list.error}). ` +
-				(cfg.mode === "cloud"
-					? "Run /login ollama to store an API key."
-					: "Start the server with `ollama serve` and pull a model with `ollama pull <model>`, or unset OLLAMA_MODE/local config if you meant Ollama Cloud.");
+			const hint =
+				cfg.mode === "cloud"
+					? cfg.apiKey
+						? "Check your network connection and that the API key is valid (https://ollama.com/settings/keys)."
+						: "Run /login ollama to store an API key."
+					: "Start the server with `ollama serve` and pull a model with `ollama pull <model>`, or unset OLLAMA_MODE/local config if you meant Ollama Cloud.";
+			const message = `Ollama: cannot list models at ${cfg.base} (${list.error}). ${hint}`;
 			logRefresh("ollama", message);
 			throw new Error(message);
 		}

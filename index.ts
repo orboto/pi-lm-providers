@@ -11,8 +11,13 @@
  * Discovery happens twice:
  *   1. in the async factory below (so models show up immediately, including
  *      in `pi --list-models` — pi's initial catalog refresh runs before
- *      extensions load, so providers cannot rely on refreshModels alone)
+ *      extensions load, so providers cannot rely on refreshModels alone).
+ *      The factory honors a stored /login credential from auth.json so the
+ *      startup catalog matches the chosen endpoint (cloud vs local).
  *   2. via `fetchModels` for later dynamic model refreshes
+ *
+ * Refresh failures are logged to refresh.log next to this file — pi's UI only
+ * surfaces "Could not refresh <provider>" without the underlying cause.
  *
  * Usage:
  *   /login ollama    → choose Ollama Cloud (API key) or a local server
@@ -26,6 +31,7 @@ import { createProvider, openAICompletionsApi } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, Model, RefreshModelsContext } from "@earendil-works/pi-coding-agent";
 import { lmStudioAuth, lmStudioFetchModels } from "./lmstudio.ts";
 import { ollamaAuth, ollamaFetchModels } from "./ollama.ts";
+import { readStoredCredential } from "./shared.ts";
 
 const OVERFLOW_PATTERN =
 	/prompt is too long|input length exceeds context length|exceeds (the )?context (window|length)|context window exceeded|maximum context length/i;
@@ -33,25 +39,31 @@ const OVERFLOW_PATTERN =
 const MANAGED_PROVIDERS = new Set(["ollama", "lmstudio"]);
 
 /** Quick discovery pass so models are registered before pi finishes startup. */
-async function discoverModels(fetcher: (context: RefreshModelsContext) => Promise<readonly Model<"openai-completions">[]>): Promise<Model<"openai-completions">[]> {
+async function discoverModels(
+	providerId: string,
+	fetcher: (context: RefreshModelsContext) => Promise<readonly Model<"openai-completions">[]>,
+): Promise<Model<"openai-completions">[]> {
 	try {
 		return [
 			...(await fetcher({
 				allowNetwork: true,
-				signal: AbortSignal.timeout(8000),
-				credential: undefined,
+				signal: AbortSignal.timeout(10000),
+				credential: readStoredCredential(providerId) as any,
 				publish: async () => false,
 			})),
 		];
 	} catch {
-		// Server not running / no credentials yet: register empty; /login or the
-		// next model refresh fills the catalog.
+		// Server not running / network blip: register empty; the next model
+		// refresh (or /reload) fills the catalog.
 		return [];
 	}
 }
 
 export default async function lmProvidersExtension(pi: ExtensionAPI): Promise<void> {
-	const [ollamaModels, lmStudioModels] = await Promise.all([discoverModels(ollamaFetchModels), discoverModels(lmStudioFetchModels)]);
+	const [ollamaModels, lmStudioModels] = await Promise.all([
+		discoverModels("ollama", ollamaFetchModels),
+		discoverModels("lmstudio", lmStudioFetchModels),
+	]);
 
 	pi.registerProvider(
 		createProvider({
