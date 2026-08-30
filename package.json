@@ -33,7 +33,8 @@
     "lmstudio.ts",
     "shared.ts",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "docs/screenshot.png"
   ],
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",

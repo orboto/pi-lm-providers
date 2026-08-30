@@ -29,6 +29,8 @@ Models are discovered live from the server - including real capabilities
 Models without tool support are hidden (pi is an agent and needs tool
 calling). Embedding models (LM Studio) are filtered out.
 
+![pi --list-models showing live-discovered ollama and lmstudio models](docs/screenshot.png)
+
 ## Ollama
 
 ### Ollama Cloud (API key)
