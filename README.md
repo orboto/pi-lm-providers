@@ -1,4 +1,4 @@
-# pi-lm-providers — Ollama & LM Studio für pi
+# pi-lm-providers - Ollama & LM Studio for pi
 
 ## Installation
 
@@ -6,93 +6,102 @@
 pi install npm:pi-lm-providers
 ```
 
-Alternativ manuell: `"npm:pi-lm-providers"` in `~/.pi/agent/settings.json`
-unter `packages` eintragen. Ohne npm: die `.ts`-Dateien nach
-`~/.pi/agent/extensions/lm-providers/` kopieren (pi lädt sie automatisch).
+Alternatively, add `"npm:pi-lm-providers"` manually to `packages` in
+`~/.pi/agent/settings.json`. Without npm: copy the `.ts` files into
+`~/.pi/agent/extensions/lm-providers/` (pi loads them automatically).
 
-Für lokale Entwicklung genügt ein Pfad-Package (Änderungen wirken nach
-`/reload` direkt, ohne Neuinstallation):
+For local development a path package is enough (changes take effect
+directly after `/reload`, no reinstall):
 
 ```bash
-pi install /Volumes/Development/Repositories/pi-lm-providers
+pi install /path/to/pi-lm-providers
 ```
 
-Registriert zwei dynamische Provider:
+Registers two dynamic providers:
 
 | Provider | Endpoint | Login |
 |----------|----------|-------|
-| `ollama` | Lokaler Server (`http://localhost:11434`) **oder** Ollama Cloud (`https://ollama.com`) | `/login ollama` |
-| `lmstudio` | LM Studio Developer Server (`http://localhost:1234`, auch LM Studio Bionic) | `/login lmstudio` (optional) |
+| `ollama` | Local server (`http://localhost:11434`) **or** Ollama Cloud (`https://ollama.com`) | `/login ollama` |
+| `lmstudio` | LM Studio developer server (`http://localhost:1234`, incl. LM Studio Bionic) | `/login lmstudio` (optional) |
 
-Modelle werden live vom Server entdeckt — inkl. echter Capabilities (Tools/Vision/Thinking)
-und Context-Fenster, wo der Server sie liefert. Modelle ohne Tool-Support werden ausgeblendet
-(pi ist ein Agent und braucht Tool Calling). Embedding-Modelle (LM Studio) werden gefiltert.
+Models are discovered live from the server - including real capabilities
+(tools/vision/thinking) and context windows where the server provides them.
+Models without tool support are hidden (pi is an agent and needs tool
+calling). Embedding models (LM Studio) are filtered out.
 
 ## Ollama
 
-### Ollama Cloud (API-Key)
+### Ollama Cloud (API key)
 
-1. API-Key erstellen: <https://ollama.com/settings/keys>
-2. In pi: `/login ollama` → **Ollama Cloud (ollama.com)** → Key einfügen
-3. `/model` → z. B. `ollama/gpt-oss:120b`, `ollama/deepseek-v4-pro:0813`, `ollama/qwen3.5:397b`
+1. Create an API key: <https://ollama.com/settings/keys>
+2. In pi: `/login ollama` -> **Ollama Cloud (ollama.com)** -> paste the key
+3. `/model` -> e.g. `ollama/gpt-oss:120b`, `ollama/deepseek-v4-pro:0813`, `ollama/qwen3.5:397b`
 
-### Lokaler Ollama-Server
+### Local Ollama server
 
-Kein Login nötig — der Provider gilt als konfiguriert, sobald der Server erreichbar ist:
+No login needed - the provider counts as configured as soon as the server
+is reachable:
 
 ```bash
-ollama serve                 # Server starten
-ollama pull gpt-oss:20b      # Modell laden
+ollama serve                 # start the server
+ollama pull gpt-oss:20b      # download a model
 pi --provider ollama --model gpt-oss:20b
 ```
 
-### Environment-Variablen (optional)
+### Environment variables (optional)
 
-| Variable | Bedeutung |
-|----------|-----------|
-| `OLLAMA_MODE` | `cloud` oder `local` erzwingen |
-| `OLLAMA_API_KEY` | Cloud-API-Key; impliziert Cloud-Mode, wenn `OLLAMA_MODE` unset |
-| `OLLAMA_BASE_URL` | Vollständige Base-URL überschreiben (lokal & cloud, z. B. eigener Proxy) |
-| `OLLAMA_HOST` | Lokaler Host im Ollama-Format (`127.0.0.1`, `host:11434`, `https://gpu.corp:8443`) |
-| `OLLAMA_CLOUD_BASE` | Cloud-Endpoint überschreiben |
+| Variable | Meaning |
+|----------|---------|
+| `OLLAMA_MODE` | Force `cloud` or `local` |
+| `OLLAMA_API_KEY` | Cloud API key; implies cloud mode when `OLLAMA_MODE` is unset |
+| `OLLAMA_BASE_URL` | Override the full base URL (local & cloud, e.g. your own proxy) |
+| `OLLAMA_HOST` | Local host in Ollama notation (`127.0.0.1`, `host:11434`, `https://gpu.corp:8443`) |
+| `OLLAMA_CLOUD_BASE` | Override the cloud endpoint |
 
-Gespeicherte `/login`-Entscheidung (lokal vs. cloud) hat Vorrang vor Umgebungserkennung.
+A stored `/login` decision (local vs. cloud) takes precedence over
+environment detection.
 
 ## LM Studio
 
-Server in LM Studio starten (Developer-Tab → Start Server, oder `lms server start`).
-Standard: `http://localhost:1234`, ohne Authentifizierung — kein Login nötig.
+Start the server in LM Studio (Developer tab -> Start Server, or
+`lms server start`). Default: `http://localhost:1234`, no authentication -
+no login needed.
 
 ```bash
 pi --provider lmstudio --model google/gemma-4-26b-a4b
 ```
 
-Falls der Server einen API-Token verlangt (Developer-Tab → API tokens):
-`/login lmstudio` → **API token** → Token einfügen.
+If the server requires an API token (Developer tab -> API tokens):
+`/login lmstudio` -> **API token** -> paste the token.
 
-| Variable | Bedeutung |
-|----------|-----------|
-| `LMSTUDIO_BASE_URL` | Vollständige Base-URL (z. B. `http://mac-mini.local:1234`) |
-| `LMSTUDIO_HOST` / `LMSTUDIO_PORT` | Host bzw. Port separat |
-| `LMSTUDIO_API_KEY` oder `LM_API_TOKEN` | API-Token |
+| Variable | Meaning |
+|----------|---------|
+| `LMSTUDIO_BASE_URL` | Full base URL (e.g. `http://mac-mini.local:1234`) |
+| `LMSTUDIO_HOST` / `LMSTUDIO_PORT` | Host and port separately |
+| `LMSTUDIO_API_KEY` or `LM_API_TOKEN` | API token |
 
-Nutzt LM Studios native `/api/v1/models`-API (Capabilities, geladene Context-Länge,
-Quantisierung); ältere Server fallen automatisch auf `/v1/models` zurück.
+Uses LM Studio's native `/api/v1/models` API (capabilities, loaded context
+length, quantization); older servers fall back to `/v1/models`
+automatically.
 
-## Hinweise
+## Notes
 
-- **Compat**: Provider senden `system` (nicht `developer`), `max_tokens` (nicht
-  `max_completion_tokens`) und keine `reasoning_effort`-Parameter — Thinking-Modelle
-  denken nach Server-Default, der Reasoning-Trace wird in pi angezeigt.
-- **Context-Overflow**: Server-Fehler wie „prompt is too long" werden normalisiert,
-  damit pi automatisch kompaktiert und erneut versucht.
-- **Modellliste aktualisieren**: Modelle werden beim pi-Start geladen; nach
-  `ollama pull …` / Modell-Download in LM Studio genügt ein Neustart oder `/reload`.
-- **Diagnose**: Schlägt ein Refresh fehl (pi zeigt nur „Could not refresh ollama“),
-  steht die Ursache in `~/.pi/agent/lm-providers.log`.
-- **Cloud-Kosten**: Usage-Tracking zeigt $0 — Ollama-Cloud-Preise sind modellabhängig
-  (siehe <https://ollama.com/cloud>).
-- **Wichtig für lokale Ollama-Modelle**: Ollama alloziert den Runtime-Context
-  serverseitig (modellabhängig, global via `OLLAMA_CONTEXT_LENGTH` konfigurierbar).
-  Bei sehr langen Sessions kann der Server trotzdem „prompt is too long" werfen —
-  dann `OLLAMA_CONTEXT_LENGTH` erhöhen und den Server neu starten.
+- **Compat**: the providers send `system` (not `developer`), `max_tokens`
+  (not `max_completion_tokens`) and no `reasoning_effort` parameters -
+  thinking models reason at the server default, and the reasoning trace is
+  shown in pi.
+- **Context overflow**: server errors like "prompt is too long" are
+  normalized so pi can compact the conversation automatically and retry.
+- **Refreshing the model list**: models are loaded at pi startup; after
+  `ollama pull ...` / downloading a model in LM Studio, a restart or
+  `/reload` is enough.
+- **Diagnostics**: if a refresh fails (pi only shows "Could not refresh
+  ollama"), the underlying cause is written to
+  `~/.pi/agent/lm-providers.log`.
+- **Cloud costs**: usage tracking shows $0 - Ollama Cloud pricing is
+  model-dependent (see <https://ollama.com/cloud>).
+- **Important for local Ollama models**: Ollama allocates the runtime
+  context server-side (model-dependent, configurable globally via
+  `OLLAMA_CONTEXT_LENGTH`). On very long sessions the server can still
+  throw "prompt is too long" - raise `OLLAMA_CONTEXT_LENGTH` and restart
+  the server.
