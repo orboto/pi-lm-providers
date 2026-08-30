@@ -1,0 +1,43 @@
+{
+  "name": "pi-lm-providers",
+  "version": "0.1.0",
+  "description": "Ollama (local + Ollama Cloud) and LM Studio providers for the pi coding agent - live model discovery with real capabilities (tools/vision/thinking) and context windows.",
+  "type": "module",
+  "pi": {
+    "extensions": ["./index.ts"]
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "extension",
+    "provider",
+    "ollama",
+    "ollama-cloud",
+    "lmstudio",
+    "lm-studio",
+    "local-llm"
+  ],
+  "author": "orboto <hello@orboto.io>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/orboto/pi-lm-providers.git"
+  },
+  "files": [
+    "index.ts",
+    "ollama.ts",
+    "lmstudio.ts",
+    "shared.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-ai": { "optional": true },
+    "@earendil-works/pi-coding-agent": { "optional": true }
+  }
+}
